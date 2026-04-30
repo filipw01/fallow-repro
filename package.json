@@ -1,0 +1,11 @@
+{
+  "name": "fallow-false-positive-repro",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "devDependencies": {
+    "fallow": "2.56.0"
+  },
+  "packageManager": "yarn@4.13.0"
+}

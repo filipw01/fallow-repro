@@ -1,0 +1,10 @@
+{
+  "name": "@fallow-repro/consumer-import",
+  "private": true,
+  "exports": {
+    ".": "./src/color-item.tsx"
+  },
+  "dependencies": {
+    "@fallow-repro/ui-export-chain": "workspace:*"
+  }
+}

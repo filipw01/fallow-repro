@@ -1,0 +1,7 @@
+{
+  "name": "@fallow-repro/ui-export-chain",
+  "private": true,
+  "exports": {
+    "./foo": "./src/foo/index.ts"
+  }
+}
