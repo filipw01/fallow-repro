@@ -1,11 +1,14 @@
 {
-  "name": "fallow-false-positive-repro",
+  "name": "fallow-getmetaassets-repro",
+  "version": "0.0.0",
   "private": true,
-  "workspaces": [
-    "packages/*"
-  ],
+  "main": "./src/ad-engine-queries.ts",
+  "packageManager": "yarn@4.13.0",
   "devDependencies": {
-    "fallow": "2.56.0"
+    "fallow": "2.61.0",
+    "typescript": "6.0.3"
   },
-  "packageManager": "yarn@4.13.0"
+  "scripts": {
+    "fallow": "fallow"
+  }
 }
