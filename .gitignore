@@ -1,3 +1,6 @@
-node_modules/
-.yarn/
-.fallow/
+node_modules
+test-results
+.fallow
+.yarn
+packages/**/node_modules
+.pnp.*

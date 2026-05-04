@@ -1,11 +1,12 @@
 {
-  "name": "fallow-false-positive-repro",
+  "name": "fallow-vitest-config-repro",
   "private": true,
+  "packageManager": "yarn@4.13.0",
   "workspaces": [
-    "packages/*"
+    "packages/config/vitest-react",
+    "packages/web/charts"
   ],
   "devDependencies": {
-    "fallow": "2.56.0"
-  },
-  "packageManager": "yarn@4.13.0"
+    "fallow": "2.63.0"
+  }
 }

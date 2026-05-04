@@ -1,0 +1,11 @@
+{
+  "$schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/schema.json",
+  "ignoreExportsUsedInFile": true,
+  "includeEntryExports": true,
+  "rules": {
+    "circular-dependencies": "off",
+    "unused-class-members": "off",
+    "unused-enum-members": "off",
+    "duplicate-exports": "off"
+  }
+}
