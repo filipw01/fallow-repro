@@ -1,3 +1,4 @@
 node_modules/
-.yarn/
 .fallow/
+.DS_Store
+.yarn

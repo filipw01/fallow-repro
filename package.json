@@ -1,11 +1,17 @@
 {
-  "name": "fallow-false-positive-repro",
+  "name": "fallow-foo-bar-repro",
   "private": true,
+  "exports": {
+    ".": "./consumer.ts"
+  },
   "workspaces": [
-    "packages/*"
+    "api"
   ],
+  "dependencies": {
+    "@foo/bar": "workspace:*"
+  },
   "devDependencies": {
-    "fallow": "2.56.0"
+    "fallow": "2.66.2"
   },
   "packageManager": "yarn@4.13.0"
 }
