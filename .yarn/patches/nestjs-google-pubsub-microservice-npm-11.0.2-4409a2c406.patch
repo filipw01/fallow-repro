@@ -1,0 +1,211 @@
+diff --git a/dist/gc-pubsub.interface.d.ts b/dist/gc-pubsub.interface.d.ts
+index 2b4198768e028bcd4845b4fa77619a29665e60f0..4d542370bbf5b0772f3754b5f393a3799b2eb099 100644
+--- a/dist/gc-pubsub.interface.d.ts
++++ b/dist/gc-pubsub.interface.d.ts
+@@ -2,9 +2,9 @@ import { ClientConfig, PublishOptions, SubscriberOptions } from '@google-cloud/p
+ import { Deserializer, Serializer } from '@nestjs/microservices';
+ export interface GCPubSubOptions {
+     client?: ClientConfig;
+-    topic?: string;
++    topicToSubscriptions: Record<string, string[]>;
++    patternResolver: (topic: string, subscription: string) => string;
+     replyTopic?: string;
+-    subscription?: string;
+     replySubscription?: string;
+     noAck?: boolean;
+     init?: boolean;
+diff --git a/dist/gc-pubsub.server.d.ts b/dist/gc-pubsub.server.d.ts
+index 3851d4c9bdceef464a14573551c7911ea3098e88..8c49b1c51ee7a197c7eb9ab7112f39040f42ba20 100644
+--- a/dist/gc-pubsub.server.d.ts
++++ b/dist/gc-pubsub.server.d.ts
+@@ -7,9 +7,12 @@ export declare class GCPubSubServer extends Server<GCPubSubEvents> implements Cu
+     protected readonly options: GCPubSubOptions;
+     protected logger: Logger;
+     protected readonly clientConfig: ClientConfig;
+-    protected readonly topicName: string;
++    protected readonly topicNameToSubscriptionNames: Record<string, string[]>;
++    protected readonly patternResolver: (
++      topic: string,
++      subscription: string,
++    ) => string;
+     protected readonly publisherConfig: PublishOptions;
+-    protected readonly subscriptionName: string;
+     protected readonly subscriberConfig: SubscriberOptions;
+     protected readonly noAck: boolean;
+     protected readonly replyTopics: Set<string>;
+@@ -21,7 +24,7 @@ export declare class GCPubSubServer extends Server<GCPubSubEvents> implements Cu
+         callback: GCPubSubEvents[keyof GCPubSubEvents];
+     }>;
+     protected client: PubSub | null;
+-    protected subscription: Subscription | null;
++    protected subscriptions: Subscription[];
+     constructor(options: GCPubSubOptions);
+     listen(callback: () => void): Promise<void>;
+     close(): Promise<void>;
+@@ -29,6 +32,8 @@ export declare class GCPubSubServer extends Server<GCPubSubEvents> implements Cu
+     sendMessage<T = any>(message: T, replyTo: string, id: string): Promise<void>;
+     createIfNotExists(create: () => Promise<any>): Promise<void>;
+     createClient(): PubSub;
+-    on<EventKey extends keyof GCPubSubEvents = keyof GCPubSubEvents, EventCallback extends GCPubSubEvents[EventKey] = GCPubSubEvents[EventKey]>(event: EventKey, callback: EventCallback): void;
++    // Gutted for patch. If we ever need it, just make sure it's updated to work with the patch's multi-subscription rework.
++    // on<EventKey extends keyof GCPubSubEvents = keyof GCPubSubEvents, EventCallback extends GCPubSubEvents[EventKey] = GCPubSubEvents[EventKey]>(event: EventKey, callback: EventCallback): void;
++    on(): void;
+     unwrap<T>(): T;
+ }
+diff --git a/dist/gc-pubsub.server.js b/dist/gc-pubsub.server.js
+index 5b5abb5750ba74e43993def461c29b568fdd2f56..37f32c0a8cdca243c0395d555351fb778e814fa8 100644
+--- a/dist/gc-pubsub.server.js
++++ b/dist/gc-pubsub.server.js
+@@ -16,14 +16,19 @@ class GCPubSubServer extends microservices_1.Server {
+         this.logger = new common_1.Logger(GCPubSubServer.name);
+         this.pendingEventListeners = [];
+         this.client = null;
+-        this.subscription = null;
++        this.subscriptions = [];
+         this.clientConfig = this.options.client || gc_pubsub_constants_1.GC_PUBSUB_DEFAULT_CLIENT_CONFIG;
+         this.scopedEnvKey = this.options.scopedEnvKey ?? '';
+-        this.topicName = this.options.topic || gc_pubsub_constants_1.GC_PUBSUB_DEFAULT_TOPIC;
+-        this.topicName = `${this.scopedEnvKey}${this.topicName}`;
+-        this.subscriptionName =
+-            this.options.subscription || gc_pubsub_constants_1.GC_PUBSUB_DEFAULT_SUBSCRIPTION;
+-        this.subscriptionName = `${this.scopedEnvKey}${this.subscriptionName}`;
++        this.topicNameToSubscriptionNames = {};
++        Object.entries(this.options.topicToSubscriptions).forEach(
++          ([topicName, subscriptionNames]) => {
++            this.topicNameToSubscriptionNames[`${this.scopedEnvKey}${topicName}`] =
++              subscriptionNames.map(
++                (subscriptionName) => `${this.scopedEnvKey}${subscriptionName}`,
++              );
++          },
++        );
++        this.patternResolver = this.options.patternResolver;
+         this.subscriberConfig =
+             this.options.subscriber || gc_pubsub_constants_1.GC_PUBSUB_DEFAULT_SUBSCRIBER_CONFIG;
+         this.publisherConfig =
+@@ -38,38 +43,49 @@ class GCPubSubServer extends microservices_1.Server {
+     }
+     async listen(callback) {
+         this.client = this.createClient();
+-        const topic = this.client.topic(this.topicName);
++        await Promise.all(
++            Object.keys(this.topicNameToSubscriptionNames).flatMap((topicName) => {
++                return this.topicNameToSubscriptionNames[topicName].flatMap(
++                  async (subscriptionName) => {
++                    await this.listenOne(topicName, subscriptionName, callback);
++                  }
++                )
++            })
++        )
++    }
++    async listenOne(topicName, subscriptionName, callback) {
++        this.logger.log(
++            `Listening to subscription ${subscriptionName} in topic ${topicName}`,
++        );
++        const topic = this.client.topic(topicName);
+         if (this.init) {
+             await this.createIfNotExists(topic.create.bind(topic));
+         }
+         else if (this.checkExistence) {
+             const [exists] = await topic.exists();
+             if (!exists) {
+-                const message = `PubSub server is not started: topic ${this.topicName} does not exist`;
++                const message = `PubSub server is not started: topic ${topicName} does not exist`;
+                 this.logger.error(message);
+                 throw new Error(message);
+             }
+         }
+-        this.subscription = topic.subscription(this.subscriptionName, this.subscriberConfig);
++        const subscription = topic.subscription(subscriptionName, this.subscriberConfig);
+         if (this.init) {
+-            await this.createIfNotExists(this.subscription.create.bind(this.subscription));
++            await this.createIfNotExists(subscription.create.bind(subscription));
+         }
+         else if (this.checkExistence) {
+-            const [exists] = await this.subscription.exists();
++            const [exists] = await subscription.exists();
+             if (!exists) {
+-                const message = `PubSub server is not started: subscription ${this.subscriptionName} does not exist`;
++                const message = `PubSub server is not started: subscription ${subscriptionName} does not exist`;
+                 this.logger.error(message);
+                 throw new Error(message);
+             }
+         }
+-        this.pendingEventListeners.forEach(({ event, callback }) => {
+-            this.subscription.on(event, callback);
+-        });
+-        this.pendingEventListeners = [];
+-        this.subscription
++        this.subscriptions.push(subscription)
++        subscription
+             .on('message', async (message) => {
+             try {
+-                await this.handleMessage(message);
++                await this.handleMessage(message, this.patternResolver(topicName, subscriptionName));
+                 if (this.noAck) {
+                     message.ack();
+                 }
+@@ -85,7 +101,7 @@ class GCPubSubServer extends microservices_1.Server {
+         callback();
+     }
+     async close() {
+-        await (0, gc_pubsub_utils_1.closeSubscription)(this.subscription);
++        await Promise.all(this.subscriptions.map((subscription) => (0, gc_pubsub_utils_1.closeSubscription)(subscription)));
+         await Promise.all(Array.from(this.replyTopics.values()).map((replyTopic) => {
+             return (0, gc_pubsub_utils_1.flushTopic)(this.client.topic(replyTopic));
+         }));
+@@ -93,7 +109,7 @@ class GCPubSubServer extends microservices_1.Server {
+         await (0, gc_pubsub_utils_1.closePubSub)(this.client);
+         this.pendingEventListeners = [];
+     }
+-    async handleMessage(message) {
++    async handleMessage(message, pattern) {
+         const { data, attributes } = message;
+         let rawMessage;
+         try {
+@@ -103,20 +119,7 @@ class GCPubSubServer extends microservices_1.Server {
+             this.logger.error(`Unsupported JSON message data format for message '${message.id}'`);
+             return;
+         }
+-        let packet;
+-        if (attributes.pattern) {
+-            packet = this.deserializer.deserialize({
+-                data: rawMessage,
+-                id: attributes.id,
+-                pattern: attributes.pattern,
+-            });
+-        }
+-        else {
+-            packet = this.deserializer.deserialize(rawMessage);
+-        }
+-        const pattern = (0, shared_utils_1.isString)(packet.pattern)
+-            ? packet.pattern
+-            : JSON.stringify(packet.pattern);
++        const packet = this.deserializer.deserialize(rawMessage);
+         const correlationId = packet.id;
+         const context = new gc_pubsub_context_1.GCPubSubContext([message, pattern]);
+         if ((0, shared_utils_1.isUndefined)(correlationId)) {
+@@ -160,14 +163,16 @@ class GCPubSubServer extends microservices_1.Server {
+     createClient() {
+         return new pubsub_1.PubSub(this.clientConfig);
+     }
+-    on(event, callback) {
+-        if (this.subscription) {
+-            this.subscription.on(event, callback);
+-        }
+-        else {
+-            this.pendingEventListeners.push({ event, callback });
+-        }
+-    }
++    // Gutted for patch. If we ever need it, just make sure it's updated to work with the patch's multi-subscription rework.
++    // on(event, callback) {
++    //     if (this.subscription) {
++    //         this.subscription.on(event, callback);
++    //     }
++    //     else {
++    //         this.pendingEventListeners.push({ event, callback });
++    //     }
++    // }
++    on() {}
+     unwrap() {
+         if (!this.client) {
+             throw new Error('Client is not initialized.');

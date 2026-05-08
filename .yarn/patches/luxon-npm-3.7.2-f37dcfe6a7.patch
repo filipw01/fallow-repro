@@ -1,0 +1,26 @@
+diff --git a/build/es6/luxon.mjs b/build/es6/luxon.mjs
+index 06e1d6cbad687d0e6e493394cc615aef70c5733c..833d7cec2bd7ab8dcf75e3628d9224bf0aa26812 100644
+--- a/build/es6/luxon.mjs
++++ b/build/es6/luxon.mjs
+@@ -1516,7 +1516,7 @@ let now = () => Date.now(),
+   defaultNumberingSystem = null,
+   defaultOutputCalendar = null,
+   twoDigitCutoffYear = 60,
+-  throwOnInvalid,
++  throwOnInvalid = true,
+   defaultWeekSettings = null;
+ 
+ /**
+diff --git a/build/node/luxon.js b/build/node/luxon.js
+index a8ee891f3b43bc571383bee738c50ce7af0041f7..816aa87022bee9f7c2e16fddb7a96b2aa67a37b9 100644
+--- a/build/node/luxon.js
++++ b/build/node/luxon.js
+@@ -1444,7 +1444,7 @@ let now = () => Date.now(),
+   defaultNumberingSystem = null,
+   defaultOutputCalendar = null,
+   twoDigitCutoffYear = 60,
+-  throwOnInvalid,
++  throwOnInvalid = true,
+   defaultWeekSettings = null;
+ 
+ /**

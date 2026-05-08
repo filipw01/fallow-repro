@@ -1,0 +1,112 @@
+diff --git a/dist/cjs/collection/sync.cjs b/dist/cjs/collection/sync.cjs
+index 993d1b68c2c8c73afe49fc17c6519d41429d9385..db49b4a26872a27717a08a48e763e40f489ffb40 100644
+--- a/dist/cjs/collection/sync.cjs
++++ b/dist/cjs/collection/sync.cjs
+@@ -74,7 +74,7 @@ class CollectionSyncManager {
+                 if (valuesEqual) {
+                   messageType = `update`;
+                 } else {
+-                  const utils2 = this.config.utils;
++                  const utils2 = this.config.utils ?? {};
+                   const internal$1 = utils2[internal.LIVE_QUERY_INTERNAL];
+                   throw new errors.DuplicateKeySyncError(key, this.id, {
+                     hasCustomGetKey: internal$1?.hasCustomGetKey ?? false,
+diff --git a/dist/cjs/query/live/collection-config-builder.cjs b/dist/cjs/query/live/collection-config-builder.cjs
+index 5e75945fa9bf873fcd71782c3746e1e82f076401..41f15761ae45c76920980935684151105cbeb5d6 100644
+--- a/dist/cjs/query/live/collection-config-builder.cjs
++++ b/dist/cjs/query/live/collection-config-builder.cjs
+@@ -988,11 +988,13 @@ function flushIncludesState(includesState, parentCollection, parentId, parentCha
+             if (entry.orderByIndices && change.orderByIndex !== void 0) {
+               entry.orderByIndices.set(change.value, change.orderByIndex);
+             }
++            const childAlreadyExists = entry.syncMethods.collection.has(childKey);
+             if (change.inserts > 0 && change.deletes === 0) {
+-              entry.syncMethods.write({ value: change.value, type: `insert` });
+-            } else if (change.inserts > change.deletes || change.inserts === change.deletes && entry.syncMethods.collection.has(
+-              entry.syncMethods.collection.getKeyFromItem(change.value)
+-            )) {
++              entry.syncMethods.write({
++                value: change.value,
++                type: childAlreadyExists ? `update` : `insert`
++              });
++            } else if (change.inserts > change.deletes || change.inserts === change.deletes && childAlreadyExists) {
+               entry.syncMethods.write({ value: change.value, type: `update` });
+             } else if (change.deletes > 0) {
+               entry.syncMethods.write({ value: change.value, type: `delete` });
+diff --git a/dist/esm/collection/sync.js b/dist/esm/collection/sync.js
+index 8745e748ee8516bc6d81db5a667606628cfa3ff5..4890daf6bdece4751322ef80af3e47c6853a063b 100644
+--- a/dist/esm/collection/sync.js
++++ b/dist/esm/collection/sync.js
+@@ -72,7 +72,7 @@ class CollectionSyncManager {
+                 if (valuesEqual) {
+                   messageType = `update`;
+                 } else {
+-                  const utils = this.config.utils;
++                  const utils = this.config.utils ?? {};
+                   const internal = utils[LIVE_QUERY_INTERNAL];
+                   throw new DuplicateKeySyncError(key, this.id, {
+                     hasCustomGetKey: internal?.hasCustomGetKey ?? false,
+diff --git a/dist/esm/query/live/collection-config-builder.js b/dist/esm/query/live/collection-config-builder.js
+index 3abdb7fdb709987abba4e2bde765136e29d19201..abb204b99f95451dea5282941eb9a21eb561a963 100644
+--- a/dist/esm/query/live/collection-config-builder.js
++++ b/dist/esm/query/live/collection-config-builder.js
+@@ -986,11 +986,13 @@ function flushIncludesState(includesState, parentCollection, parentId, parentCha
+             if (entry.orderByIndices && change.orderByIndex !== void 0) {
+               entry.orderByIndices.set(change.value, change.orderByIndex);
+             }
++            const childAlreadyExists = entry.syncMethods.collection.has(childKey);
+             if (change.inserts > 0 && change.deletes === 0) {
+-              entry.syncMethods.write({ value: change.value, type: `insert` });
+-            } else if (change.inserts > change.deletes || change.inserts === change.deletes && entry.syncMethods.collection.has(
+-              entry.syncMethods.collection.getKeyFromItem(change.value)
+-            )) {
++              entry.syncMethods.write({
++                value: change.value,
++                type: childAlreadyExists ? `update` : `insert`
++              });
++            } else if (change.inserts > change.deletes || change.inserts === change.deletes && childAlreadyExists) {
+               entry.syncMethods.write({ value: change.value, type: `update` });
+             } else if (change.deletes > 0) {
+               entry.syncMethods.write({ value: change.value, type: `delete` });
+diff --git a/src/collection/sync.ts b/src/collection/sync.ts
+index 82fffb7728b99342b7ce159dc130e578bc9f430e..1d9cdd87f819f6d311b9de296c616de3a0b15e39 100644
+--- a/src/collection/sync.ts
++++ b/src/collection/sync.ts
+@@ -151,8 +151,8 @@ export class CollectionSyncManager<
+                   // throwing a duplicate-key error during reconciliation.
+                   messageType = `update`
+                 } else {
+-                  const utils = this.config
+-                    .utils as Partial<LiveQueryCollectionUtils>
++                  const utils = (this.config.utils ??
++                    {}) as Partial<LiveQueryCollectionUtils>
+                   const internal = utils[LIVE_QUERY_INTERNAL]
+                   throw new DuplicateKeySyncError(key, this.id, {
+                     hasCustomGetKey: internal?.hasCustomGetKey ?? false,
+diff --git a/src/query/live/collection-config-builder.ts b/src/query/live/collection-config-builder.ts
+index 7353b2116f59e10d47d4e49bf67ff361c88bb3dd..4a7f631907a81471856650a27d47d69faae56686 100644
+--- a/src/query/live/collection-config-builder.ts
++++ b/src/query/live/collection-config-builder.ts
+@@ -1644,14 +1644,18 @@ function flushIncludesState(
+             if (entry.orderByIndices && change.orderByIndex !== undefined) {
+               entry.orderByIndices.set(change.value, change.orderByIndex)
+             }
++            const childAlreadyExists = entry.syncMethods.collection.has(
++              childKey as any,
++            )
+             if (change.inserts > 0 && change.deletes === 0) {
+-              entry.syncMethods.write({ value: change.value, type: `insert` })
++              entry.syncMethods.write({
++                value: change.value,
++                type: childAlreadyExists ? `update` : `insert`,
++              })
+             } else if (
+               change.inserts > change.deletes ||
+               (change.inserts === change.deletes &&
+-                entry.syncMethods.collection.has(
+-                  entry.syncMethods.collection.getKeyFromItem(change.value),
+-                ))
++                childAlreadyExists)
+             ) {
+               entry.syncMethods.write({ value: change.value, type: `update` })
+             } else if (change.deletes > 0) {

@@ -1,0 +1,8 @@
+{
+  "name": "@motion/customer-website-editor",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "@motion/rpc-definitions": "workspace:*"
+  }
+}
