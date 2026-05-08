@@ -1,0 +1,18 @@
+node_modules/
+
+# Yarn artifacts not needed for repro sharing
+.yarn
+.yarn/install-state.gz
+.pnp.*
+
+# Local output and logs
+dist/
+build/
+*.log
+yarn-error.log*
+
+# macOS / editor noise
+.DS_Store
+.idea/
+.vscode/
+.fallow/

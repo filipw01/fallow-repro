@@ -1,0 +1,12 @@
+{
+  "name": "fallow-dead-code-repro",
+  "private": true,
+  "packageManager": "yarn@4.13.0",
+  "workspaces": [
+    "apps/foo",
+    "packages/bar"
+  ],
+  "devDependencies": {
+    "fallow": "2.67.0"
+  }
+}
