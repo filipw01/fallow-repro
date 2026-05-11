@@ -1,15 +1,5 @@
-# Dependencies / package manager artifacts
-node_modules/
-.yarn/*
-!.yarn/plugins/
-!.yarn/plugins/plugin-auto-install/
-!.yarn/plugins/plugin-auto-install/.gitignore
-!.yarn/plugins/plugin-auto-install/hash
-
-# Tool runtime output
 .fallow/
-
-# OS / editor noise
-.DS_Store
-.idea/
-.vscode/
+.yarn/*
+!.yarn/releases/
+!.yarn/releases/yarn-4.13.0.cjs
+node_modules/

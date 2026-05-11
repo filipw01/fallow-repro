@@ -1,0 +1,8 @@
+{
+  "name": "foo",
+  "private": true,
+  "main": "bar.ts",
+  "exports": {
+    ".": "./bar.ts"
+  }
+}

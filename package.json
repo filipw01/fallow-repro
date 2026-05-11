@@ -1,12 +1,12 @@
 {
-  "name": "fallow-min-repro",
+  "name": "fallow-repro",
   "private": true,
   "packageManager": "yarn@4.13.0",
-  "scripts": {
-    "fallow": "fallow"
-  },
+  "workspaces": [
+    "foo",
+    "bar"
+  ],
   "devDependencies": {
-    "fallow": "2.67.0",
-    "vitest": "^4.1.5"
+    "fallow": "2.68.0"
   }
 }
